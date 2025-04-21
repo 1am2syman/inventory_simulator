@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Level Simulator with Volatility</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f4f7f6;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+         .calculated-values {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+        }
+         .calculated-value-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .calculated-value-item label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+         .calculated-value-item span {
+            font-size: 1.1rem;
+            color: #333;
+         }
+
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="number"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #007bff; /* Changed button color */
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3; /* Darker shade on hover */
+        }
+        canvas {
+            display: block;
+            margin-top: 30px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .message-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            display: none; /* Hidden by default */
+        }
+         .error-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: none; /* Hidden by default */
+        }
+         .legend {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            font-size: 0.9rem;
+         }
+         .legend-item {
+            display: flex;
+            align-items: center;
+         }
+         .legend-color {
+            width: 20px;
+            height: 10px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+         }
+         .legend-dashed {
+             border-style: dashed;
+         }
+         .legend-dotted {
+             border-style: dotted;
+         }
+
+         .toggle-controls {
+             margin-top: 20px;
+             display: flex;
+             flex-wrap: wrap;
+             gap: 15px;
+             justify-content: center;
+             font-size: 0.9rem;
+         }
+         .toggle-item {
+             display: flex;
+             align-items: center;
+         }
+         .toggle-item input {
+             margin-right: 5px;
+         }
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Inventory Level Simulator with Volatility</h1>
+
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="initialInventory">Initial Inventory:</label>
+                <input type="number" id="initialInventory" value="150" min="0">
+            </div>
+            <div class="input-group">
+                <label for="avgDemand">Average Daily Demand:</label>
+                <input type="number" id="avgDemand" value="10" min="1">
+            </div>
+             <div class="input-group">
+                <label for="demandStdDev">Demand Std. Dev.:</label>
+                <input type="number" id="demandStdDev" value="2" min="0">
+            </div>
+            <div class="input-group">
+                <label for="avgLeadTime">Average Lead Time (days):</label>
+                <input type="number" id="avgLeadTime" value="7" min="0">
+            </div>
+             <div class="input-group">
+                <label for="leadTimeStdDev">Lead Time Std. Dev. (days):</label>
+                <input type="number" id="leadTimeStdDev" value="1" min="0">
+            </div>
+             <div class="input-group">
+                <label for="serviceLevel">Service Level (%):</label>
+                <input type="number" id="serviceLevel" value="95" min="0" max="99.9">
+            </div>
+            <div class="input-group">
+                <label for="simulationDuration">Simulation Duration (days):</label>
+                <input type="number" id="simulationDuration" value="100" min="1">
+            </div>
+             <div class="input-group">
+                <label for="roqMultiplier">ROQ Multiplier (vs Avg Demand over Avg Lead Time):</label>
+                <input type="number" id="roqMultiplier" value="2" min="1">
+            </div>
+        </div>
+
+        <div class="calculated-values">
+            <div class="calculated-value-item">
+                <label>Calculated Safety Stock (SS):</label>
+                <span id="calculatedSS">-</span>
+            </div>
+             <div class="calculated-value-item">
+                <label>Calculated Reorder Point (ROP):</label>
+                <span id="calculatedROP">-</span>
+            </div>
+             <div class="calculated-value-item">
+                <label>Calculated Reorder Quantity (ROQ):</label>
+                <span id="calculatedROQ">-</span>
+            </div>
+        </div>
+
+
+        <button id="simulateBtn">Calculate and Run Simulation</button>
+
+        <div id="messageBox" class="message-box"></div>
+         <div id="errorBox" class="error-box"></div>
+
+        <canvas id="inventoryChart"></canvas>
+
+         <div class="toggle-controls">
+             <div class="toggle-item">
+                 <input type="checkbox" id="toggleSOH" checked>
+                 <label for="toggleSOH">Show SOH</label>
+             </div>
+             <div class="toggle-item">
+                 <input type="checkbox" id="toggleInTransit" checked>
+                 <label for="toggleInTransit">Show In Transit</label>
+             </div>
+             <div class="toggle-item">
+                 <input type="checkbox" id="toggleTotalStock" checked>
+                 <label for="toggleTotalStock">Show Total Stock</label>
+             </div>
+              <div class="toggle-item">
+                 <input type="checkbox" id="toggleSS" checked>
+                 <label for="toggleSS">Show SS</label>
+             </div>
+              <div class="toggle-item">
+                 <input type="checkbox" id="toggleROP" checked>
+                 <label for="toggleROP">Show ROP</label>
+             </div>
+         </div>
+
+
+         <div class="legend">
+            <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span> Stock on Hand (SOH)</div>
+            <div class="legend-item"><span class="legend-color" style="background-color: rgba(0, 123, 255, 0.7); width: 15px;"></span> In Transit Stock</div> <div class="legend-item"><span class="legend-color" style="background-color: #6f42c1;"></span> Total Stock (SOH + In Transit)</div>
+            <div class="legend-item"><span class="legend-color legend-dashed" style="border-color: #ff0000;"></span> Safety Stock (SS)</div>
+            <div class="legend-item"><span class="legend-color legend-dotted" style="border-color: #ffc107;"></span> Reorder Point (ROP)</div>
+         </div>
+
+    </div>
+
+    <script>
+        document.getElementById('simulateBtn').addEventListener('click', runSimulation);
+
+        // Add event listeners to checkboxes to redraw chart when toggled
+        document.getElementById('toggleSOH').addEventListener('change', redrawChart);
+        document.getElementById('toggleInTransit').addEventListener('change', redrawChart);
+        document.getElementById('toggleTotalStock').addEventListener('change', redrawChart);
+        document.getElementById('toggleSS').addEventListener('change', redrawChart);
+        document.getElementById('toggleROP').addEventListener('change', redrawChart);
+
+
+        // Store the last simulation data globally so redrawChart can access it
+        let lastSimulationData = [];
+        let lastCalculatedSS = 0;
+        let lastCalculatedROP = 0;
+        let lastSimulationDuration = 0;
+
+
+        // Function to get Z-score for a given service level (using approximation for common levels)
+        function getZScore(serviceLevel) {
+            // This is a simplified mapping for common service levels.
+            // For more accuracy, a statistical library or lookup table would be needed.
+            if (serviceLevel >= 99.9) return 3.09;
+            if (serviceLevel >= 99) return 2.33;
+            if (serviceLevel >= 97.5) return 1.96;
+            if (serviceLevel >= 95) return 1.645;
+            if (serviceLevel >= 90) return 1.28;
+            if (serviceLevel >= 85) return 1.04;
+            if (serviceLevel >= 80) return 0.84;
+            if (serviceLevel >= 75) return 0.67;
+            if (serviceLevel >= 50) return 0; // 50% service level means ROP = Average Demand * Avg Lead Time
+            return 0; // Below 50% service level, SS is not typically needed
+        }
+
+         // Function to generate a standard normal random number (mean 0, std dev 1)
+         function standardNormalRandom() {
+             let u = 0, v = 0;
+             while(u === 0) u = Math.random(); //Convert [0,1) to (0,1)
+             while(v === 0) v = Math.random();
+             return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+         }
+
+
+        // Function to generate random demand (using a simple normal distribution approximation)
+        function getRandomDemand(avgDemand, stdDev) {
+            let demand = avgDemand + stdDev * standardNormalRandom();
+            return Math.max(0, Math.round(demand)); // Demand cannot be negative
+        }
+
+         // Function to generate random lead time (avgLeadTime + non-negative variation)
+        function getRandomLeadTime(avgLeadTime, stdDev) {
+             // Variation is max(0, normal random with mean 0 and stdDev)
+             let variation = Math.max(0, standardNormalRandom() * stdDev);
+             let leadTime = avgLeadTime + variation;
+             return Math.max(1, Math.round(leadTime)); // Lead time must be at least 1 day
+        }
+
+
+        // Function to calculate in-transit stock for a given day
+        function calculateInTransitStock(orders, currentDay) {
+            let inTransit = 0;
+            for (const order of orders) {
+                if (order.arrivalTime > currentDay) {
+                    inTransit += order.quantity;
+                }
+            }
+            return inTransit;
+        }
+
+
+        function runSimulation() {
+            // Get input values
+            const initialInventory = parseInt(document.getElementById('initialInventory').value);
+            const avgDemand = parseInt(document.getElementById('avgDemand').value);
+            const demandStdDev = parseInt(document.getElementById('demandStdDev').value);
+            const avgLeadTime = parseInt(document.getElementById('avgLeadTime').value);
+            const leadTimeStdDev = parseInt(document.getElementById('leadTimeStdDev').value);
+            const serviceLevel = parseFloat(document.getElementById('serviceLevel').value);
+            const simulationDuration = parseInt(document.getElementById('simulationDuration').value);
+            const roqMultiplier = parseInt(document.getElementById('roqMultiplier').value);
+
+            const messageBox = document.getElementById('messageBox');
+             const errorBox = document.getElementById('errorBox');
+
+
+            // Validate inputs
+            if (isNaN(initialInventory) || isNaN(avgDemand) || isNaN(demandStdDev) || isNaN(avgLeadTime) || isNaN(leadTimeStdDev) || isNaN(serviceLevel) || isNaN(simulationDuration) || isNaN(roqMultiplier)) {
+                showError("Please enter valid numbers for all fields.");
+                return;
+            }
+             if (avgDemand <= 0 || simulationDuration <= 0 || serviceLevel < 0 || serviceLevel > 100 || roqMultiplier <= 0) {
+                 showError("Average Daily Demand, Simulation Duration, and ROQ Multiplier must be greater than 0. Service Level must be between 0 and 100.");
+                 return;
+             }
+             if (initialInventory < 0 || demandStdDev < 0 || avgLeadTime < 0 || leadTimeStdDev < 0) {
+                 showError("Initial Inventory, Demand Std. Dev., Average Lead Time, and Lead Time Std. Dev. cannot be negative.");
+                 return;
+             }
+
+
+            hideMessage(); // Hide any previous messages
+            hideError(); // Hide any previous errors
+
+            // --- Calculate SS, ROP, and ROQ ---
+            const zScore = getZScore(serviceLevel);
+
+            // Calculate the standard deviation of demand during lead time
+            // Formula: sqrt((Avg Lead Time * Demand Variance) + (Avg Demand^2 * Lead Time Variance))
+            const demandVariance = demandStdDev * demandStdDev;
+            const leadTimeVariance = leadTimeStdDev * leadTimeStdDev;
+            const stdDevDemandDuringLeadTime = Math.sqrt((avgLeadTime * demandVariance) + (avgDemand * avgDemand * leadTimeVariance));
+
+            const calculatedSS = Math.ceil(zScore * stdDevDemandDuringLeadTime); // Round up for safety
+            const calculatedROP = Math.ceil((avgDemand * avgLeadTime) + calculatedSS); // Round up
+             // Simple ROQ calculation: Multiplier * Average Demand over Average Lead Time
+            const calculatedROQ = Math.ceil(roqMultiplier * (avgDemand * avgLeadTime)); // Round up
+
+            // Display calculated values
+            document.getElementById('calculatedSS').textContent = calculatedSS;
+            document.getElementById('calculatedROP').textContent = calculatedROP;
+            document.getElementById('calculatedROQ').textContent = calculatedROQ;
+
+            // --- Run Simulation with Volatility ---
+            let currentInventory = initialInventory;
+            const simulationData = []; // To store data for each day { day, soh, inTransit, totalStock }
+            const orders = []; // To track placed orders and their arrival times
+            let stockoutDays = 0;
+
+            // Store initial state (Day 0)
+             simulationData.push({
+                 day: 0,
+                 soh: currentInventory,
+                 inTransit: calculateInTransitStock(orders, 0),
+                 totalStock: currentInventory + calculateInTransitStock(orders, 0)
+             });
+
+
+            // Simulation loop
+            for (let day = 1; day <= simulationDuration; day++) {
+                // Generate random daily demand
+                const dailyDemand = getRandomDemand(avgDemand, demandStdDev);
+                currentInventory -= dailyDemand;
+
+                // Check for arriving orders
+                for (let i = 0; i < orders.length; i++) {
+                    if (orders[i].arrivalTime === day) {
+                        currentInventory += orders[i].quantity;
+                        orders.splice(i, 1); // Remove arrived order
+                        i--; // Adjust index after removal
+                    }
+                }
+
+                // Check if ROP is reached and place an order
+                // Only place an order if current inventory is at or below ROP AND no order is currently pending that will arrive after today
+                if (currentInventory <= calculatedROP && !orders.some(order => order.placedDay + order.leadTime > day)) {
+                     // Generate random lead time for this order
+                    const orderLeadTime = getRandomLeadTime(avgLeadTime, leadTimeStdDev);
+                    orders.push({
+                        quantity: calculatedROQ,
+                        placedDay: day,
+                        leadTime: orderLeadTime,
+                        arrivalTime: day + orderLeadTime
+                    });
+                }
+
+                // Track stockout days (SOH below zero)
+                if (currentInventory < 0) {
+                    stockoutDays++;
+                }
+
+                 // Store data for the current day
+                 simulationData.push({
+                     day: day,
+                     soh: currentInventory,
+                     inTransit: calculateInTransitStock(orders, day),
+                     totalStock: currentInventory + calculateInTransitStock(orders, day)
+                 });
+
+            }
+
+             // Show simulation results message
+            const stockoutPercentage = (stockoutDays / simulationDuration) * 100;
+            showMessage(`Simulation finished. Stockouts occurred on ${stockoutDays} days (${stockoutPercentage.toFixed(1)}%). Note: This ROQ is a simplified calculation.`);
+
+            // Store simulation data for redrawing
+            lastSimulationData = simulationData;
+            lastCalculatedSS = calculatedSS;
+            lastCalculatedROP = calculatedROP;
+            lastSimulationDuration = simulationDuration;
+
+
+            // Draw the chart
+            redrawChart(); // Call redrawChart to draw the chart with current toggle settings
+        }
+
+        // Function to redraw the chart based on stored data and toggle settings
+        function redrawChart() {
+            const canvas = document.getElementById('inventoryChart');
+            const ctx = canvas.getContext('2d');
+
+             if (lastSimulationData.length === 0) return; // Don't draw if no data
+
+            // Set canvas size (adjust as needed)
+            canvas.width = canvas.parentElement.offsetWidth; // Make canvas responsive
+            canvas.height = 400;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawing
+
+            const padding = 40;
+            const chartWidth = canvas.width - 2 * padding;
+            const chartHeight = canvas.height - 2 * padding;
+
+            // Find max value for Y-axis scaling (consider all data, SS, ROP)
+            let maxInventory = 0;
+            for(const dayData of lastSimulationData) {
+                maxInventory = Math.max(maxInventory, dayData.soh, dayData.inTransit, dayData.totalStock);
+            }
+             maxInventory = Math.max(maxInventory, lastCalculatedSS, lastCalculatedROP) * 1.2; // Add some buffer
+             if (maxInventory === 0) maxInventory = 100; // Prevent division by zero if all values are 0
+
+
+            const maxDays = lastSimulationDuration;
+
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(padding, padding + chartHeight);
+            ctx.lineTo(padding + chartWidth, padding + chartHeight); // X-axis
+            ctx.moveTo(padding, padding + chartHeight);
+            ctx.lineTo(padding, padding); // Y-axis
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+
+
+            // Get toggle states
+            const showSOH = document.getElementById('toggleSOH').checked;
+            const showInTransit = document.getElementById('toggleInTransit').checked;
+            const showTotalStock = document.getElementById('toggleTotalStock').checked;
+            const showSS = document.getElementById('toggleSS').checked;
+            const showROP = document.getElementById('toggleROP').checked;
+
+
+             // Draw Safety Stock line (if toggled)
+             if (showSS) {
+                const ssY = padding + chartHeight - (lastCalculatedSS / maxInventory) * chartHeight;
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]); // Dashed line
+                ctx.moveTo(padding, ssY);
+                ctx.lineTo(padding + chartWidth, ssY);
+                ctx.strokeStyle = '#ff0000'; // Red color for Safety Stock
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset line dash
+
+                 // Draw Safety Stock label
+                ctx.fillStyle = '#ff0000';
+                ctx.font = '12px Arial';
+                ctx.fillText(`Safety Stock (${lastCalculatedSS})`, padding + chartWidth + 5, ssY);
+             }
+
+
+             // Draw Reorder Point line (if toggled)
+             if (showROP) {
+                const ropY = padding + chartHeight - (lastCalculatedROP / maxInventory) * chartHeight;
+                ctx.beginPath();
+                ctx.setLineDash([2, 2]); // Dotted line
+                ctx.moveTo(padding, ropY);
+                ctx.lineTo(padding + chartWidth, ropY);
+                ctx.strokeStyle = '#ffc107'; // Yellow/Orange color for ROP
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset line dash
+
+                 // Draw Reorder Point label
+                ctx.fillStyle = '#ffc107';
+                ctx.font = '12px Arial';
+                ctx.fillText(`ROP (${lastCalculatedROP})`, padding + chartWidth + 5, ropY);
+             }
+
+
+            // Draw SOH line (if toggled)
+            if (showSOH) {
+                ctx.beginPath();
+                ctx.moveTo(padding, padding + chartHeight - (Math.max(0, lastSimulationData[0].soh) / maxInventory) * chartHeight); // Ensure SOH is not negative for plotting start
+                ctx.strokeStyle = '#28a745'; // Green color for SOH
+                ctx.lineWidth = 2;
+                for (let i = 1; i < lastSimulationData.length; i++) {
+                    const x = padding + (i / maxDays) * chartWidth;
+                    const y = padding + chartHeight - (Math.max(0, lastSimulationData[i].soh) / maxInventory) * chartHeight; // Ensure SOH is not negative for plotting
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+
+             // Draw In Transit line (if toggled)
+             if (showInTransit) {
+                ctx.beginPath();
+                ctx.moveTo(padding, padding + chartHeight - (lastSimulationData[0].inTransit / maxInventory) * chartHeight);
+                ctx.strokeStyle = 'rgba(0, 123, 255, 0.7)'; // Blue color with 70% opacity
+                ctx.lineWidth = 1; // Thinner line
+                for (let i = 1; i < lastSimulationData.length; i++) {
+                    const x = padding + (i / maxDays) * chartWidth;
+                    const y = padding + chartHeight - (lastSimulationData[i].inTransit / maxInventory) * chartHeight;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+
+             // Draw Total Stock line (if toggled)
+             if (showTotalStock) {
+                ctx.beginPath();
+                ctx.moveTo(padding, padding + chartHeight - (lastSimulationData[0].totalStock / maxInventory) * chartHeight);
+                ctx.strokeStyle = '#6f42c1'; // Purple color for Total Stock
+                ctx.lineWidth = 2;
+                for (let i = 1; i < lastSimulationData.length; i++) {
+                    const x = padding + (i / maxDays) * chartWidth;
+                    const y = padding + chartHeight - (lastSimulationData[i].totalStock / maxInventory) * chartHeight;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+
+            // Draw labels
+            // X-axis labels (Days)
+            ctx.fillStyle = '#333';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            for (let i = 0; i <= maxDays; i += Math.max(1, Math.floor(maxDays / 10))) { // Show labels every 10% of duration
+                 const x = padding + (i / maxDays) * chartWidth;
+                 ctx.fillText(i, x, padding + chartHeight + 20);
+            }
+             ctx.fillText("Day", padding + chartWidth / 2, padding + chartHeight + 35);
+
+
+            // Y-axis labels (Inventory Level)
+            ctx.textAlign = 'right';
+             ctx.textBaseline = 'middle';
+             const yAxisSteps = Math.max(1, Math.floor(maxInventory / 5)); // Show labels every 20% of max inventory
+            for (let i = 0; i <= maxInventory; i += yAxisSteps) {
+                 const y = padding + chartHeight - (i / maxInventory) * chartHeight;
+                 ctx.fillText(Math.round(i), padding - 10, y);
+            }
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'top';
+             ctx.fillText("Inventory Level", padding - 30, padding + chartHeight / 2); // Y-axis title (rotated conceptually)
+
+
+        }
+
+         function showMessage(message) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.style.display = 'block';
+            document.getElementById('errorBox').style.display = 'none'; // Hide error if message is shown
+        }
+
+         function showError(message) {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.textContent = message;
+            errorBox.style.display = 'block';
+            document.getElementById('messageBox').style.display = 'none'; // Hide message if error is shown
+        }
+
+
+        function hideMessage() {
+            document.getElementById('messageBox').style.display = 'none';
+        }
+
+         function hideError() {
+            document.getElementById('errorBox').style.display = 'none';
+        }
+
+
+         // Initial chart draw on page load
+         window.onload = function() {
+             runSimulation(); // Run simulation with default values on load
+         };
+
+
+    </script>
+</body>
+</html>
